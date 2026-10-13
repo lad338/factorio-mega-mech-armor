@@ -1,0 +1,14 @@
+{
+  "name": "mega-mech-armor",
+  "version": "0.1.0",
+  "title": "Mega Mech Armor",
+  "author": "lad338",
+  "homepage": "https://github.com/lad338/factorio-mega-mech-armor",
+  "description": "Adds mega mech armor.",
+  "factorio_version": "2.1",
+  "dependencies": [
+    "base >= 2.0.0",
+    "space-age >= 2.0.0",
+    "quality >= 2.0.0"
+  ]
+}
