@@ -9,6 +9,6 @@
   "dependencies": [
     "base >= 2.0.0",
     "space-age >= 2.0.0",
-    "quality >= 2.0.0"
+    "? quality >= 2.0.0"
   ]
 }
