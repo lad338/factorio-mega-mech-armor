@@ -2,6 +2,22 @@ local torso_animation = require("prototypes.entity.mega-mech-armor-animations")
 
 local VEHICLE_SCALE = 2.5
 
+-- Dedicated render instead of reusing the personal mech-armor's own
+-- icon (__space-age__/graphics/icons/mech-armor.png) -- sharing it
+-- caused confusion between the personal equipment and this vehicle in
+-- inventories/crafting menus. Generated from mech-armor's own
+-- character animation art: the "mech-idle" base layer, direction index
+-- 3, frame 0, letterboxed into a 64x64 square with no cropping of the
+-- actual character art. Direction 3 confirmed by direct visual pick
+-- (all 8 shown unlabeled) after direction 0 turned out to be the
+-- character's BACK, not front -- RotatedAnimation's own docs say
+-- direction sequencing follows defines.direction, where North (index
+-- 0) means facing away from the camera, not toward it. Direction 3 is
+-- Southeast: front, angled toward the lower-right, matching vanilla's
+-- own tank.png/car.png icon convention.
+local ICON = "__mega-mech-armor__/graphics/entity/mega-mech-armor/mega-mech-armor-icon.png"
+local ICON_SIZE = 64
+
 -- +5 percentage points to every resistance type, read live off vanilla
 -- spidertron's own resistances rather than hand-copied, so a future
 -- Wube rebalance of spidertron can't silently desync ours.
@@ -41,8 +57,8 @@ data:extend({
   {
     type = "spider-vehicle",
     name = "mega-mech-armor",
-    icon = "__space-age__/graphics/icons/mech-armor.png",
-    icon_size = 64,
+    icon = ICON,
+    icon_size = ICON_SIZE,
     collision_box = {{-1 * VEHICLE_SCALE, -1 * VEHICLE_SCALE}, {1 * VEHICLE_SCALE, 1 * VEHICLE_SCALE}},
     selection_box = {{-1 * VEHICLE_SCALE, -1 * VEHICLE_SCALE}, {1 * VEHICLE_SCALE, 1 * VEHICLE_SCALE}},
     -- Confirmed via the prototype docs: sticker_box is specifically
@@ -162,8 +178,8 @@ data:extend({
     localised_name = {"entity-name.mega-mech-armor"},
     collision_box = {{-0.1, -0.1}, {0.1, 0.1}},
     selection_box = {{-0.5, -0.5}, {0.5, 0.5}},
-    icon = "__space-age__/graphics/icons/mech-armor.png",
-    icon_size = 64,
+    icon = ICON,
+    icon_size = ICON_SIZE,
     -- Invisible, centered, single leg -- no graphics_set at all, and
     -- the leg still collides with nothing except the map edge (added
     -- below) so the torso can fly anywhere.
@@ -186,8 +202,8 @@ data:extend({
   {
     type = "item-with-entity-data",
     name = "mega-mech-armor",
-    icon = "__space-age__/graphics/icons/mech-armor.png",
-    icon_size = 64,
+    icon = ICON,
+    icon_size = ICON_SIZE,
     subgroup = "transport",
     order = "b[personal-transport]-d[mega-mech-armor]",
     place_result = "mega-mech-armor",
