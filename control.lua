@@ -1,4 +1,5 @@
 local combat_mode = require("scripts.combat-mode")
+local space_travel = require("scripts.space-travel")
 
 -- Keeps the vehicle's color synced to its driver's player color.
 local function sync_color(entity, color)
@@ -14,6 +15,7 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
   end
   sync_color(player.physical_vehicle, player.color)
   combat_mode.on_driving_state_changed(player)
+  space_travel.on_driving_state_changed(player)
 end)
 
 script.on_event(defines.events.on_player_color_changed, function(event)
@@ -43,8 +45,25 @@ end)
 
 script.on_event(defines.events.on_tick, function()
   combat_mode.on_tick()
+  space_travel.on_tick()
 end)
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
   combat_mode.on_setting_changed(event.setting)
+end)
+
+script.on_event(defines.events.on_gui_click, function(event)
+  space_travel.on_gui_click(event)
+end)
+
+script.on_event(defines.events.on_gui_opened, function(event)
+  space_travel.on_gui_opened(event)
+end)
+
+script.on_event(defines.events.on_gui_closed, function(event)
+  space_travel.on_gui_closed(event)
+end)
+
+script.on_event(defines.events.on_cutscene_cancelled, function(event)
+  space_travel.on_cutscene_cancelled(event.player_index)
 end)

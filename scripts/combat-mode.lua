@@ -164,4 +164,14 @@ function combat_mode.on_setting_changed(setting_name)
   end
 end
 
+-- No-op if combat mode wasn't active. Used by space-travel.lua so an
+-- active combat mode is torn down before a trip starts.
+function combat_mode.stop_if_active(player)
+  if not get_state(player.index) then
+    return
+  end
+  teardown(player.index)
+  player.set_shortcut_toggled("mega-mech-armor-toggle-combat-mode", false)
+end
+
 return combat_mode
