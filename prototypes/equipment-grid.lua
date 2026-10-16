@@ -1,12 +1,6 @@
--- Normal-quality base size, 11x13. Grows with quality automatically
--- via QualityPrototype's equipment_grid_width_bonus/height_bonus
--- (both default to the quality's own `level` -- uncommon=1, rare=2,
--- epic=3, legendary=5 -- applied for free to every grid-bearing
--- entity in the game), so at 11x13 the real per-tier sizes become
--- 12x14, 13x15, 14x16, and 16x18. No extra control.lua enforcement --
--- the earlier version of this grid had custom per-tier target sizes
--- trimmed down at runtime; that's been dropped in favor of just
--- accepting whatever the engine's own default growth produces.
+-- 11x13 base size. Quality grows this automatically (engine default:
+-- +level to each dimension), so the real per-tier sizes are 12x14,
+-- 13x15, 14x16, 16x18 -- no control.lua enforcement needed.
 data:extend({
   {
     type = "equipment-grid",

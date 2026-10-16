@@ -1,8 +1,6 @@
 local combat_mode = require("scripts.combat-mode")
--- Only used below for one-time cleanup of a GUI element an earlier
--- version of this mod created with this library (mod_gui.get_button_flow)
--- -- not part of this feature's own ongoing design, which no longer
--- uses mod-gui at all.
+-- Only used for one-time cleanup of a legacy GUI button; this feature's
+-- own design no longer uses mod-gui.
 local mod_gui = require("mod-gui")
 
 local space_travel = {}
@@ -19,32 +17,21 @@ local DESCEND_TICKS = 90
 local ARRIVAL_OFFSET = {x = -40, y = -30}
 local FACING_RIGHT = 0.25
 
--- Must be 0, not merely small: transition_time's pan starts from the
--- camera's CURRENT position, which for a brand-new cutscene is the
--- vehicle's own (already-teleported) position -- centered on screen --
--- not the previous cutscene's last waypoint. Any nonzero value here
--- renders that centered frame for one tick before panning to
--- landing_position, which is exactly the "mech appears in the centre"
--- blink this constant exists to prevent. 0 makes the camera snap to
--- landing_position with no transition frame at all.
+-- Must be 0: transition_time pans from the camera's CURRENT position
+-- (the vehicle's own just-teleported position, centered on screen), not
+-- the previous cutscene's last waypoint. Any nonzero value renders that
+-- centered frame for a tick before panning to landing_position.
 local CAMERA_SNAP_TICKS = 0
 
--- A cutscene waypoint's time_to_wait governs when the cutscene ends on
--- its own ("finishes naturally") -- not how long this module's own
--- tick-driven animation takes. Both waypoints below hold indefinitely;
--- this module ends the cutscene itself (begin_descend re-issues a new
--- one, finish_travel calls exit_cutscene), never the engine.
+-- time_to_wait governs when a cutscene ends on its own; both waypoints
+-- below hold indefinitely -- this module always ends its own cutscenes
+-- (begin_descend re-issues a new one, finish_travel calls exit_cutscene).
 local WAYPOINT_HOLD_TICKS = 0xFFFFFFFF
 
--- Hard failsafe: a real trip should never take anywhere near this
--- long (ASCEND_TICKS + DESCEND_TICKS = 180). If one ever does, that
--- means something about the normal completion path silently didn't
--- work -- confirmed to be possible live: a player reported getting
--- completely stuck in a locked-out state after a full, error-free
--- trip, with no crash dialog to explain why. Rather than leave anyone
--- permanently stuck on an undiscovered bug, on_tick forces a cleanup
--- once a trip has run this long, regardless of phase or any other
--- state.
+-- Failsafe: a real trip never takes anywhere near this long
+-- (ASCEND_TICKS + DESCEND_TICKS = 180). If one does, the normal
+-- completion path silently failed -- force a cleanup rather than leave
+-- the player locked out indefinitely.
 local MAX_TRIP_TICKS = 600
 
 local function get_state(player_index)
@@ -52,15 +39,12 @@ local function get_state(player_index)
   return storage.mega_mech_armor_space_travel[player_index]
 end
 
--- On space_travel.internal (not just a local) so headless tests can
--- call it directly against real entities, without a real LuaPlayer.
 function space_travel.internal.is_driving_mech(player)
   local vehicle = player.physical_vehicle
   if not (vehicle and vehicle.valid and vehicle.name == "mega-mech-armor") then
     return nil
   end
-  -- allow_passengers defaults to true on VehiclePrototype, and this
-  -- vehicle doesn't override it, so a passenger also has
+  -- allow_passengers defaults to true, so a passenger also has
   -- physical_vehicle set -- only the actual driver may trigger travel.
   local driver = vehicle.get_driver()
   if driver == player.character or driver == player then
@@ -76,16 +60,9 @@ local function destroy_frame(player)
   end
 end
 
--- Anchored to the right of the mega mech armor's own vehicle frame
--- (the middle, trunk/weapons/equipment column) via
--- relative_gui_type.spider_vehicle_gui, scoped by `name` to this
--- entity only -- it won't show on vanilla spidertron or any other
--- spider-vehicle. Built/destroyed by on_gui_opened/on_gui_closed for
--- that specific vehicle (see below), not by driving state alone --
--- driving state doesn't tell you WHICH mega-mech-armor's GUI is
--- currently open, and a player can open another, undriven
--- mega-mech-armor's trunk from outside it while still driving their
--- own.
+-- Anchored to the right of this vehicle's own GUI via
+-- relative_gui_type.spider_vehicle_gui, scoped by `name` so it never
+-- shows on vanilla spidertron or any other spider-vehicle.
 local function build_planet_frame(player, vehicle)
   destroy_frame(player)
   local frame = player.gui.relative.add({
@@ -113,33 +90,22 @@ local function build_planet_frame(player, vehicle)
   end
 end
 
--- Exit the ascend cutscene and re-enter a new one for descend within
--- the SAME tick/function call -- the two-tick split tried earlier
--- (exiting on one tick, teleporting and re-entering on the next) was
--- a hypothesis for a different, since-disproven bug, and left a
--- real, visible side effect: for that one in-between tick, the
--- player's camera rendered their normal, un-cutscened view -- still
--- on the ORIGIN planet, since the teleport hadn't happened yet --
--- before being locked back into the descend cutscene a tick later.
--- That's the visible "blink" this collapses away.
+-- Exits the ascend cutscene and enters the descend one within the same
+-- call, so no frame renders in between with the camera off a cutscene.
 local function begin_descend(state)
   local internal = space_travel.internal
   if state.player.controller_type == defines.controllers.cutscene then
-    -- on_cutscene_cancelled fires for a cutscene ended "by the player
-    -- OR BY SCRIPT" -- this script's own exit_cutscene() call below
-    -- counts as the latter. own_exit_in_progress tells
-    -- space_travel.on_cutscene_cancelled to leave this trip's state
-    -- alone for its own script-initiated exit, so only a genuine
-    -- player-initiated cancellation actually tears the trip down.
+    -- on_cutscene_cancelled fires for a script-initiated exit too, not
+    -- just a player-initiated one. own_exit_in_progress tells
+    -- space_travel.on_cutscene_cancelled to ignore this one, so only a
+    -- genuine player cancellation tears the trip down.
     state.own_exit_in_progress = true
     pcall(function()
       state.player.exit_cutscene()
     end)
   end
-  -- A real player can be ejected from the vehicle's driver seat as a
-  -- side effect of exit_cutscene() restoring normal character control
-  -- -- re-seat explicitly before relying on "the vehicle brings its
-  -- driver along" for the upcoming cross-surface teleport.
+  -- exit_cutscene() can eject the player from the driver seat as a side
+  -- effect -- re-seat before the upcoming cross-surface teleport.
   if state.vehicle.get_driver() == nil and state.player.character and state.player.character.valid then
     state.vehicle.set_driver(state.player.character)
   end
@@ -151,18 +117,14 @@ local function begin_descend(state)
   }
   internal.teleport_vehicle(state.vehicle, state.destination_surface, state.arrival_position)
   if state.vehicle.surface ~= state.destination_surface or state.vehicle.get_driver() == nil then
-    -- Teleport didn't fully take effect (surface still wrong, or the
-    -- driver got separated from the vehicle) -- abort cleanly rather
-    -- than hand the player back into a broken, driverless/vehicleless
-    -- state.
+    -- Teleport didn't fully take, or the driver got separated -- abort
+    -- rather than hand back a broken, driverless/vehicleless state.
     storage.mega_mech_armor_space_travel[state.player.index] = nil
     return
   end
-  -- Camera snaps to and holds on the landing position almost
-  -- instantly (CAMERA_SNAP_TICKS), rather than panning there over the
-  -- whole descent -- the mech then visually flies INTO this static
-  -- frame from off-screen (per ARRIVAL_OFFSET) as step_descend moves
-  -- it, rather than the camera loosely tracking it the whole way.
+  -- Camera snaps straight to the landing position; the mech then flies
+  -- INTO this static frame from off-screen (ARRIVAL_OFFSET) as
+  -- step_descend moves it.
   state.player.set_controller({
     type = defines.controllers.cutscene,
     waypoints = {
@@ -177,15 +139,8 @@ local function begin_descend(state)
   state.tick = 0
 end
 
--- Clears this module's own tracking FIRST, then attempts
--- exit_cutscene defensively (pcall-wrapped) -- if that call itself is
--- ever wrong about controller_type/validity, our own state is already
--- clean and on_tick will never touch this player again regardless, so
--- a failed exit_cutscene here can no longer cause a permanent
--- cutscene-lock on its own. Real report: a player got stuck
--- completely locked out after a full, error-free trip -- the surest
--- sign is that no crash dialog appeared, meaning something here
--- silently didn't do what it looked like it did.
+-- Clears this module's own tracking first, so a failed exit_cutscene
+-- below can never leave a trip permanently stuck.
 local function finish_travel(player_index, state)
   storage.mega_mech_armor_space_travel[player_index] = nil
   if state.player and state.player.valid then
@@ -255,23 +210,10 @@ local function start_travel(player, vehicle, planet)
   }
 end
 
--- One-time migration: two earlier versions of this mod each created a
--- button this feature no longer uses -- one in the top-row mod-gui
--- flow, one anchored directly into player.gui.relative. Removing the
--- code that created either doesn't remove one that already exists in
--- a save from before this change, so both are swept away explicitly,
--- once, for every currently-known player.
--- _v2, deliberately not the original flag name: a save that already
--- ran the first (narrower, mod-gui-only) cleanup has that flag set to
--- true already, which would otherwise skip this expanded version
--- forever and never reach the second leftover location.
--- mod_gui's own button flow is shared by every mod that uses it, so
--- destroying our button can leave an empty (but still visible, bordered)
--- wrapper frame behind if nothing else happens to be using it. Safe to
--- remove: mod_gui.get_button_flow recreates this exact structure from
--- scratch for any mod that still needs it, so an empty one costs
--- nothing to lose. Only ever removes mod_gui's own well-known
--- "mod_gui_top_frame" wrapper specifically, never gui.top itself.
+-- mod_gui's button flow is shared by every mod that uses it, so
+-- destroying our button can leave an empty wrapper frame behind.
+-- Safe to remove: mod_gui recreates this structure from scratch for any
+-- mod that still needs it.
 local function destroy_if_now_empty(element)
   if element and element.valid and #element.children == 0 then
     local parent = element.parent
@@ -282,10 +224,14 @@ local function destroy_if_now_empty(element)
   end
 end
 
--- _v3: the user already confirmed v2's cleanup removed both buttons
--- (that flag is already true in their save), but v2 never destroyed
--- the now-empty wrapper frame those buttons were sitting in -- a new
--- flag is required again, same reasoning as the v1->v2 bump.
+-- One-time migration: earlier versions of this mod created a button
+-- (in mod_gui's top-row flow, then directly in player.gui.relative)
+-- that this feature no longer uses. Removing the code that created it
+-- doesn't remove one already sitting in an existing save, so it's swept
+-- away explicitly, once, for every known player. The flag name is
+-- versioned (_v3) because each fix to this cleanup (what to destroy,
+-- including the leftover empty wrapper frame) needed saves that already
+-- ran an earlier version to run the improved one too.
 local function cleanup_legacy_button_once()
   if storage.space_travel_legacy_button_cleaned_v3 then
     return
@@ -296,9 +242,6 @@ local function cleanup_legacy_button_once()
     if flow[LEGACY_BUTTON_NAME] then
       flow[LEGACY_BUTTON_NAME].destroy()
     end
-    -- Unconditional: the button itself may already be gone (an
-    -- earlier cleanup round already removed it), leaving just the
-    -- empty wrapper frame behind -- that's the exact case reported.
     destroy_if_now_empty(flow)
     if player.gui.relative[LEGACY_BUTTON_NAME] then
       player.gui.relative[LEGACY_BUTTON_NAME].destroy()
@@ -336,12 +279,10 @@ function space_travel.on_tick()
   end
 end
 
--- Fires both for a player-initiated cancel/skip AND for this module's
--- own exit_cutscene() calls (the event is documented as cancelled "by
--- the player OR BY SCRIPT"). own_exit_in_progress distinguishes the
--- two: set right before begin_descend's own intentional exit, and
--- cleared here without touching the trip's state, so only a genuine
--- player-initiated cancellation actually tears the trip down.
+-- Fires both for a player-initiated cancel and for this module's own
+-- exit_cutscene() calls. own_exit_in_progress (set by begin_descend)
+-- distinguishes the two, so only a genuine player cancellation tears
+-- the trip down.
 function space_travel.on_cutscene_cancelled(player_index)
   local state = get_state(player_index)
   if not state then
@@ -354,22 +295,17 @@ function space_travel.on_cutscene_cancelled(player_index)
   storage.mega_mech_armor_space_travel[player_index] = nil
 end
 
--- Driving state alone can't tell us WHICH mega-mech-armor's GUI is
--- open (there could be several), only whether this player is still
--- driving one at all -- used purely as a safety net to clear a stale
--- panel if they stop driving while it's still showing.
+-- Safety net: clears a stale panel if the player stops driving the mech
+-- while it's still showing.
 function space_travel.on_driving_state_changed(player)
   if not is_driving_mech(player) then
     destroy_frame(player)
   end
 end
 
--- Builds or tears down the planet-list panel for the SPECIFIC
--- mega-mech-armor whose own GUI was just opened/closed -- not every
--- mega-mech-armor, and not based on driving state alone. A player can
--- open another, undriven mega-mech-armor's trunk from outside it
--- (e.g. to transfer cargo) while still driving their own; only the
--- one they're actually driving should show the panel.
+-- Builds the panel only for the specific mega-mech-armor whose GUI was
+-- just opened, and only if the player is driving that one -- a player
+-- can open another, undriven mech's trunk while still driving their own.
 function space_travel.on_gui_opened(event)
   if event.gui_type ~= defines.gui_type.entity then
     return

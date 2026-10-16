@@ -2,25 +2,14 @@ local torso_animation = require("prototypes.entity.mega-mech-armor-animations")
 
 local VEHICLE_SCALE = 2.5
 
--- Dedicated render instead of reusing the personal mech-armor's own
--- icon (__space-age__/graphics/icons/mech-armor.png) -- sharing it
--- caused confusion between the personal equipment and this vehicle in
--- inventories/crafting menus. Generated from mech-armor's own
--- character animation art: the "mech-idle" base layer, direction index
--- 3, frame 0, letterboxed into a 64x64 square with no cropping of the
--- actual character art. Direction 3 confirmed by direct visual pick
--- (all 8 shown unlabeled) after direction 0 turned out to be the
--- character's BACK, not front -- RotatedAnimation's own docs say
--- direction sequencing follows defines.direction, where North (index
--- 0) means facing away from the camera, not toward it. Direction 3 is
--- Southeast: front, angled toward the lower-right, matching vanilla's
--- own tank.png/car.png icon convention.
+-- Dedicated icon, not the personal mech-armor's own
+-- (__space-age__/graphics/icons/mech-armor.png) -- sharing it confused
+-- the personal equipment with this vehicle in inventories/crafting menus.
 local ICON = "__mega-mech-armor__/graphics/entity/mega-mech-armor/mega-mech-armor-icon.png"
 local ICON_SIZE = 64
 
 -- +5 percentage points to every resistance type, read live off vanilla
--- spidertron's own resistances rather than hand-copied, so a future
--- Wube rebalance of spidertron can't silently desync ours.
+-- spidertron's own resistances so a future rebalance can't desync ours.
 local resistances = {}
 for _, r in pairs(data.raw["spider-vehicle"].spidertron.resistances) do
   resistances[#resistances + 1] = {
@@ -30,17 +19,11 @@ for _, r in pairs(data.raw["spider-vehicle"].spidertron.resistances) do
   }
 end
 
--- max_health = spidertron's own base health (3000) + half of tank's
--- own base health (2000) = 4000. Both source values confirmed in
--- __base__/prototypes/entity/entities.lua. Needs no quality-scaling
--- flags of its own -- max_health scales automatically and generically
--- for every entity via the engine's own quality system (confirmed via
--- real spidertron health 3000/3900/4800/5700/7500 across the 5 tiers).
+-- Spidertron's base health (3000) + half of tank's (2000) = 4000.
+-- Quality scales this automatically, like every entity's max_health.
 local BASE_HEALTH = 3000 + (2000 / 2)
 
--- inventory_size = spidertron's own trunk (80) + mech armor's own
--- inventory_size_bonus (50, from __space-age__/prototypes/item.lua).
--- Same automatic quality-scaling note as max_health above.
+-- Spidertron's trunk (80) + mech armor's own inventory_size_bonus (50).
 local BASE_INVENTORY_SIZE = 80 + 50
 
 local function out_of_map_layer_name()
@@ -61,13 +44,9 @@ data:extend({
     icon_size = ICON_SIZE,
     collision_box = {{-1 * VEHICLE_SCALE, -1 * VEHICLE_SCALE}, {1 * VEHICLE_SCALE, 1 * VEHICLE_SCALE}},
     selection_box = {{-1 * VEHICLE_SCALE, -1 * VEHICLE_SCALE}, {1 * VEHICLE_SCALE, 1 * VEHICLE_SCALE}},
-    -- Confirmed via the prototype docs: sticker_box is specifically
-    -- "the area where the sticker animation can appear" -- acid damage
-    -- stickers included. Scoped to half of collision_box (the actual
-    -- mech-armor torso sprite sits in the middle of the much larger
-    -- collision/selection area, which represents the whole leg-reach
-    -- footprint, not the visible armor itself), rather than 1.5x
-    -- collision_box (bigger than the full hitbox) as it was before.
+    -- Half of collision_box: the torso sprite sits in the middle of the
+    -- much larger collision/selection area (the full leg-reach footprint,
+    -- not the visible armor), so stickers should scope to the torso only.
     sticker_box = {{-0.5 * VEHICLE_SCALE, -0.5 * VEHICLE_SCALE}, {0.5 * VEHICLE_SCALE, 0.5 * VEHICLE_SCALE}},
     drawing_box_vertical_extension = 3 * VEHICLE_SCALE,
     mined_sound = {filename = "__core__/sound/deconstruct-large.ogg", volume = 0.8},
@@ -80,25 +59,9 @@ data:extend({
     minable = {mining_time = 1, result = "mega-mech-armor"},
     max_health = BASE_HEALTH,
     resistances = resistances,
-    -- car/tank's own map triangle turned out to be hardcoded directly
-    -- into the engine's car-type rendering (confirmed: not a sprite
-    -- file anywhere in base/core graphics, and spider-vehicle has no
-    -- equivalent fallback at all -- omitting these fields left nothing
-    -- showing on the map, not a free triangle). Generated instead: the
-    -- real mech-armor icon. Cropped to its actual 64x64 icon region
-    -- *first* -- the source file is 120x64 and packs multiple unused
-    -- character poses side by side; only the left 64px square is the
-    -- real icon (confirmed against the vanilla item's own default
-    -- icon_size). Scaling down before cropping was tried and rejected:
-    -- shrinking the full 120-wide strip pulls part of the next pose
-    -- into any 64x64 crop regardless of anchor point, since the gap
-    -- between poses shrinks too. Once isolated, the single icon is
-    -- scaled down to 70% and placed within a transparent 64x64 canvas
-    -- (canvas size unchanged, only the content shrinks, for a margin
-    -- around the silhouette) -- 1px right of mathematically centered
-    -- (4px was tried first and overshot, leaning right instead of
-    -- left). That padded result is recolored to a white fill with a
-    -- red outline.
+    -- spider-vehicle has no built-in map-triangle fallback (unlike
+    -- car/tank, where it's hardcoded into the engine's rendering), so a
+    -- minimap icon is required here or nothing shows on the map at all.
     minimap_representation = {
       filename = "__mega-mech-armor__/graphics/entity/mega-mech-armor/mega-mech-armor-map.png",
       flags = {"icon"},
@@ -112,10 +75,9 @@ data:extend({
     corpse = "spidertron-remnants",
     dying_explosion = "spidertron-explosion",
     energy_per_hit_point = 1,
-    -- Names created by Task 5's data-final-fixes.lua clones. Referencing
-    -- them here before they exist is fine -- Factorio validates all
-    -- cross-prototype references only after every mod's entire data
-    -- stage (data.lua, data-updates.lua, data-final-fixes.lua) has run.
+    -- Cloned in data-final-fixes.lua. Referencing them here before they
+    -- exist is fine -- cross-prototype references are validated only
+    -- after every mod's whole data stage has run.
     guns = {
       "mega-mech-armor-cannon",
       "mega-mech-armor-machine-gun",
@@ -129,9 +91,8 @@ data:extend({
     equipment_grid = "mega-mech-armor-equipment-grid",
     trash_inventory_size = 20,
     height = 1.5 * VEHICLE_SCALE,
-    -- Space Spidertron uses 0.2 (vanilla spidertron uses 0.005 -- fine
-    -- for 5-legged walking, but reads as sluggish on a flying,
-    -- single-leg vehicle); matched its near-instant turn rate.
+    -- Vanilla spidertron uses 0.005, fine for 5-legged walking but
+    -- sluggish on a flying, single-leg vehicle.
     torso_rotation_speed = 0.2,
     chunk_exploration_radius = 3,
     selection_priority = 60,
@@ -140,11 +101,8 @@ data:extend({
     },
     energy_source = {type = "void"},
     movement_energy_consumption = "250kW",
-    -- Both fields are required on spider-vehicle (no default -- confirmed
-    -- via a real load error when they were omitted). automatic_weapon_cycling
-    -- = false is the literal "no chain shooting" the proposal asks for;
-    -- chain_shooting_cooldown_modifier is inert whenever cycling is false,
-    -- so 1 (neutral) is fine.
+    -- Both required on spider-vehicle (no default). No chain shooting;
+    -- chain_shooting_cooldown_modifier is inert when cycling is false.
     automatic_weapon_cycling = false,
     chain_shooting_cooldown_modifier = 1,
     spider_engine = {
@@ -162,9 +120,7 @@ data:extend({
     allow_remote_driving = true,
     -- Full flight: no terrain collides with this vehicle at all.
     collision_mask = {layers = {}},
-    -- Can't be built where there's no gravity (space platforms),
-    -- same restriction vanilla spidertron gets on Space Age -- despite
-    -- flying, it's still not a space-rated vehicle.
+    -- Same restriction as vanilla spidertron: not space-rated, despite flying.
     surface_conditions = {
       {
         property = "gravity",
@@ -207,21 +163,15 @@ data:extend({
     subgroup = "transport",
     order = "b[personal-transport]-d[mega-mech-armor]",
     place_result = "mega-mech-armor",
-    -- 1 ton matches the rocket silo's own default lift_weight (1,000,000
-    -- internal units = 1000kg, confirmed in
-    -- core/prototypes/utility-constants.lua's default_rocket_lift_weight)
-    -- exactly, the same value vanilla's own spidertron and tank items use
-    -- for the same reason: caps it to exactly 1 per rocket launch to a
-    -- space platform.
+    -- Matches the rocket silo's default lift_weight exactly, same as
+    -- vanilla spidertron/tank: caps it to 1 per rocket launch.
     weight = 1 * tons,
     stack_size = 1,
   },
 })
 
--- Leg still can't walk off the edge of the actual map, same technique
--- the "Space Spidertron" reference mod uses for its own zero-collision
--- leg. The out-of-map tile already collides with this layer by
--- default (confirmed via the live data dump), so only the leg's own
--- mask needs the layer added.
+-- The out-of-map tile already collides with this layer by default, so
+-- adding it to the leg's own mask is enough to keep it off the map edge
+-- despite its otherwise-empty collision_mask.
 local map_layer = out_of_map_layer_name()
 data.raw["spider-leg"]["mega-mech-armor-leg"].collision_mask.layers[map_layer] = true

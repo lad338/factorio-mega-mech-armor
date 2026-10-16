@@ -1,7 +1,5 @@
--- "personal fusion reactor" from the proposal is fusion-reactor-equipment
--- (the equipment-grid-mounted personal version) -- there is no tech
--- literally named personal-fusion-reactor. Confirmed in
--- __space-age__/prototypes/technology.lua.
+-- fusion-reactor-equipment is the personal (equipment-grid-mounted) fusion
+-- reactor tech -- there is no tech named personal-fusion-reactor.
 data:extend({
   {
     type = "technology",
