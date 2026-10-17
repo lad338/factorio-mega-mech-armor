@@ -3,7 +3,7 @@
 ## Overview
 
 - Introducing a vehicle type - Mega Mech Armor
-- Imagine a spidertron but it can fly.
+- Imagine a better spidertron that can fly.
 - Having larger equipment grid.
 - Having larger variety of weapons.
 - Using combat mode for better biter diplomacy.
